@@ -1,0 +1,11 @@
+{
+    "telegram_bot": {
+        "running": true,
+        "pid": 29624
+    },
+    "trading_bot": {
+        "running": true,
+        "pid": 28424
+    },
+    "timestamp": "2025-05-19T09:53:23.203584"
+}

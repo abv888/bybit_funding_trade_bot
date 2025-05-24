@@ -1,0 +1,8 @@
+aiogram
+python-telegram-bot
+pandas
+pybit
+python-dotenv
+aiohttp
+matplotlib
+numpy
