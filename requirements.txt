@@ -1,8 +1,6 @@
-aiogram
-python-telegram-bot
 pandas
 pybit
+aiogram
 python-dotenv
-aiohttp
-matplotlib
-numpy
+asyncio-throttle
+aiofiles
