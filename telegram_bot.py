@@ -46,31 +46,7 @@ class TelegramBotServer:
         # Обработчик /start
         @self.router.message(Command("start"))
         async def cmd_start(message: Message):
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="📊 Статус", callback_data="status"),
-                    InlineKeyboardButton(text="💹 Фандинг", callback_data="funding")
-                ],
-                [
-                    InlineKeyboardButton(text="🔝 Топ рейты", callback_data="top"),
-                    InlineKeyboardButton(text="📈 Статистика", callback_data="stats")
-                ],
-                [
-                    InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"),
-                    InlineKeyboardButton(text="❌ Стоп", callback_data="emergency_stop")
-                ]
-            ])
-            
-            await message.answer(
-                "🤖 <b>Фандинг Арбитраж Бот</b>\n\n"
-                "Добро пожаловать! Я помогу вам отслеживать и торговать на фандинг рейтах Bybit.\n\n"
-                "🎯 <b>Стратегия:</b> Ищу пары с наибольшими фандинг рейтами по модулю, "
-                "открываю позицию за 10 секунд до выплаты, чтобы получить фандинг, "
-                "затем закрываю после получения выплаты.\n\n"
-                "📊 Выберите действие:",
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
+            await self.send_menu(message)
         
         # Обработчик callback-запросов
         @self.router.callback_query()
@@ -90,6 +66,12 @@ class TelegramBotServer:
                     await self.handle_emergency_stop(callback)
                 elif callback.data == "refresh":
                     await self.handle_refresh(callback)
+                elif callback.data == "menu":
+                    await self.handle_menu(callback)
+                elif callback.data == "confirm_stop":
+                    await self.handle_confirm_stop(callback)
+                elif callback.data == "cancel_stop":
+                    await self.handle_cancel_stop(callback)
                 
                 await callback.answer()
             except Exception as e:
@@ -116,6 +98,43 @@ class TelegramBotServer:
         async def cmd_stats(message: Message):
             await self.send_stats(message)
     
+    async def send_menu(self, message: Message, edit=False):
+        """Отправка главного меню"""
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📊 Статус", callback_data="status"),
+                InlineKeyboardButton(text="💹 Фандинг", callback_data="funding")
+            ],
+            [
+                InlineKeyboardButton(text="🔝 Топ рейты", callback_data="top"),
+                InlineKeyboardButton(text="📈 Статистика", callback_data="stats")
+            ],
+            [
+                InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings"),
+                InlineKeyboardButton(text="❌ Стоп", callback_data="emergency_stop")
+            ]
+        ])
+        
+        menu_text = (
+            "🤖 <b>Фандинг Арбитраж Бот</b>\n\n"
+            "Добро пожаловать! Я помогу вам отслеживать и торговать на фандинг рейтах Bybit.\n\n"
+            "🎯 <b>Стратегия:</b> Ищу пары с наибольшими фандинг рейтами по модулю, "
+            "открываю позицию за 10 секунд до выплаты, чтобы получить фандинг, "
+            "затем закрываю после получения выплаты.\n\n"
+            "📊 Выберите действие:"
+        )
+        
+        if edit:
+            try:
+                await message.edit_text(menu_text, reply_markup=keyboard, parse_mode="HTML")
+            except Exception as edit_error:
+                if "message is not modified" in str(edit_error):
+                    logger.info("Меню не изменилось, обновление пропущено")
+                else:
+                    raise edit_error
+        else:
+            await message.answer(menu_text, reply_markup=keyboard, parse_mode="HTML")
+    
     async def handle_status(self, callback: CallbackQuery):
         """Обработка запроса статуса"""
         await self.send_status(callback.message, edit=True)
@@ -135,6 +154,10 @@ class TelegramBotServer:
     async def handle_settings(self, callback: CallbackQuery):
         """Обработка запроса настроек"""
         await self.send_settings(callback.message, edit=True)
+
+    async def handle_menu(self, callback: CallbackQuery):
+        """Обработка запроса меню"""
+        await self.send_menu(callback.message, edit=True)
     
     async def handle_emergency_stop(self, callback: CallbackQuery):
         """Обработка экстренной остановки"""
@@ -154,9 +177,23 @@ class TelegramBotServer:
             parse_mode="HTML"
         )
     
+    async def handle_confirm_stop(self, callback: CallbackQuery):
+        """Подтверждение остановки бота"""
+        # Здесь можно добавить логику для остановки торгового бота
+        await callback.message.edit_text(
+            "🛑 <b>БОТ ОСТАНОВЛЕН!</b>\n\n"
+            "Все торговые операции прекращены.\n"
+            "Для повторного запуска перезапустите программу.",
+            parse_mode="HTML"
+        )
+    
+    async def handle_cancel_stop(self, callback: CallbackQuery):
+        """Отмена остановки бота"""
+        await self.send_menu(callback.message, edit=True)
+    
     async def handle_refresh(self, callback: CallbackQuery):
         """Обновление данных"""
-        if callback.data == "refresh":
+        try:
             # Определяем, какую страницу обновлять по тексту сообщения
             if "Статус бота" in callback.message.text:
                 await self.send_status(callback.message, edit=True)
@@ -164,6 +201,16 @@ class TelegramBotServer:
                 await self.send_funding(callback.message, edit=True)
             elif "Топ фандинг рейты" in callback.message.text:
                 await self.send_top(callback.message, edit=True)
+            elif "Статистика торговли" in callback.message.text:
+                await self.send_stats(callback.message, edit=True)
+            elif "Настройки бота" in callback.message.text:
+                await self.send_settings(callback.message, edit=True)
+        except Exception as e:
+            # Если контент не изменился, просто игнорируем ошибку
+            if "message is not modified" in str(e):
+                logger.info("Содержимое сообщения не изменилось, обновление пропущено")
+            else:
+                logger.error(f"Ошибка при обновлении: {e}")
     
     async def send_status(self, message: Message, edit=False):
         """Отправка статуса бота"""
@@ -232,11 +279,17 @@ class TelegramBotServer:
             # Клавиатура
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh")],
-                [InlineKeyboardButton(text="🏠 Главная", callback_data="start")]
+                [InlineKeyboardButton(text="🏠 Главная", callback_data="menu")]
             ])
 
             if edit:
-                await message.edit_text(status_text, reply_markup=keyboard, parse_mode="HTML")
+                try:
+                    await message.edit_text(status_text, reply_markup=keyboard, parse_mode="HTML")
+                except Exception as edit_error:
+                    if "message is not modified" in str(edit_error):
+                        logger.info("Статус не изменился, обновление пропущено")
+                    else:
+                        raise edit_error
             else:
                 await message.answer(status_text, reply_markup=keyboard, parse_mode="HTML")
 
@@ -244,7 +297,11 @@ class TelegramBotServer:
             logger.error(f"Ошибка при отправке статуса: {e}")
             error_text = "❌ Произошла ошибка при получении статуса"
             if edit:
-                await message.edit_text(error_text)
+                try:
+                    await message.edit_text(error_text)
+                except Exception as edit_error:
+                    if "message is not modified" not in str(edit_error):
+                        logger.error(f"Ошибка при редактировании сообщения об ошибке: {edit_error}")
             else:
                 await message.answer(error_text)
     
@@ -305,11 +362,17 @@ class TelegramBotServer:
             # Клавиатура
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh")],
-                [InlineKeyboardButton(text="🏠 Главная", callback_data="start")]
+                [InlineKeyboardButton(text="🏠 Главная", callback_data="menu")]
             ])
 
             if edit:
-                await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                try:
+                    await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                except Exception as edit_error:
+                    if "message is not modified" in str(edit_error):
+                        logger.info("Фандинг данные не изменились, обновление пропущено")
+                    else:
+                        raise edit_error
             else:
                 await message.answer(response, reply_markup=keyboard, parse_mode="HTML")
 
@@ -317,7 +380,11 @@ class TelegramBotServer:
             logger.error(f"Ошибка при отправке фандинг рейтов: {e}")
             error_text = "❌ Произошла ошибка при получении фандинг рейтов"
             if edit:
-                await message.edit_text(error_text)
+                try:
+                    await message.edit_text(error_text)
+                except Exception as edit_error:
+                    if "message is not modified" not in str(edit_error):
+                        logger.error(f"Ошибка при редактировании сообщения об ошибке: {edit_error}")
             else:
                 await message.answer(error_text)
     
@@ -380,11 +447,17 @@ class TelegramBotServer:
             # Клавиатура
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh")],
-                [InlineKeyboardButton(text="🏠 Главная", callback_data="start")]
+                [InlineKeyboardButton(text="🏠 Главная", callback_data="menu")]
             ])
 
             if edit:
-                await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                try:
+                    await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                except Exception as edit_error:
+                    if "message is not modified" in str(edit_error):
+                        logger.info("Топ рейты не изменились, обновление пропущено")
+                    else:
+                        raise edit_error
             else:
                 await message.answer(response, reply_markup=keyboard, parse_mode="HTML")
 
@@ -392,7 +465,11 @@ class TelegramBotServer:
             logger.error(f"Ошибка при отправке топ рейтов: {e}")
             error_text = "❌ Произошла ошибка при получении топ рейтов"
             if edit:
-                await message.edit_text(error_text)
+                try:
+                    await message.edit_text(error_text)
+                except Exception as edit_error:
+                    if "message is not modified" not in str(edit_error):
+                        logger.error(f"Ошибка при редактировании сообщения об ошибке: {edit_error}")
             else:
                 await message.answer(error_text)
     
@@ -442,11 +519,17 @@ class TelegramBotServer:
             # Клавиатура
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh")],
-                [InlineKeyboardButton(text="🏠 Главная", callback_data="start")]
+                [InlineKeyboardButton(text="🏠 Главная", callback_data="menu")]
             ])
 
             if edit:
-                await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                try:
+                    await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                except Exception as edit_error:
+                    if "message is not modified" in str(edit_error):
+                        logger.info("Статистика не изменилась, обновление пропущено")
+                    else:
+                        raise edit_error
             else:
                 await message.answer(response, reply_markup=keyboard, parse_mode="HTML")
 
@@ -454,7 +537,11 @@ class TelegramBotServer:
             logger.error(f"Ошибка при отправке статистики: {e}")
             error_text = "❌ Произошла ошибка при получении статистики"
             if edit:
-                await message.edit_text(error_text)
+                try:
+                    await message.edit_text(error_text)
+                except Exception as edit_error:
+                    if "message is not modified" not in str(edit_error):
+                        logger.error(f"Ошибка при редактировании сообщения об ошибке: {edit_error}")
             else:
                 await message.answer(error_text)
     
@@ -483,11 +570,17 @@ class TelegramBotServer:
 
             # Клавиатура
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🏠 Главная", callback_data="start")]
+                [InlineKeyboardButton(text="🏠 Главная", callback_data="menu")]
             ])
 
             if edit:
-                await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                try:
+                    await message.edit_text(response, reply_markup=keyboard, parse_mode="HTML")
+                except Exception as edit_error:
+                    if "message is not modified" in str(edit_error):
+                        logger.info("Настройки не изменились, обновление пропущено")
+                    else:
+                        raise edit_error
             else:
                 await message.answer(response, reply_markup=keyboard, parse_mode="HTML")
 
@@ -495,7 +588,11 @@ class TelegramBotServer:
             logger.error(f"Ошибка при отправке настроек: {e}")
             error_text = "❌ Произошла ошибка при получении настроек"
             if edit:
-                await message.edit_text(error_text)
+                try:
+                    await message.edit_text(error_text)
+                except Exception as edit_error:
+                    if "message is not modified" not in str(edit_error):
+                        logger.error(f"Ошибка при редактировании сообщения об ошибке: {edit_error}")
             else:
                 await message.answer(error_text)
     

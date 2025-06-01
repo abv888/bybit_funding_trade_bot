@@ -88,6 +88,7 @@ class TradingBot:
         """Обновление текущего баланса USDT"""
         try:
             self.balance = await self.bybit.get_wallet_balance("USDT")
+            self.save_status()
             return self.balance
         except Exception as e:
             logger.error(f"Ошибка при обновлении баланса: {e}")
