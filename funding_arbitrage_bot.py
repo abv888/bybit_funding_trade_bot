@@ -31,12 +31,12 @@ load_dotenv()
 BYBIT_API_KEY = os.getenv("BYBIT_API_KEY")
 BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_USER_ID = int(os.getenv("TELEGRAM_USER_ID", "0"))
-TRADE_AMOUNT_USDT = float(os.getenv("TRADE_AMOUNT_USDT", "10"))
-MIN_FUNDING_RATE = float(os.getenv("MIN_FUNDING_RATE", "0.0001"))  # Минимальный фандинг рейт для торговли (0.01%)
-SECONDS_BEFORE_FUNDING = int(os.getenv("SECONDS_BEFORE_FUNDING", "10"))  # За сколько секунд до выплаты открывать позицию
-TOP_PAIRS_COUNT = int(os.getenv("TOP_PAIRS_COUNT", "20"))  # Количество топ пар по модулю рейта
-SECONDS_AFTER_FUNDING_TO_CLOSE = int(os.getenv("SECONDS_AFTER_FUNDING_TO_CLOSE", "30"))  # Через сколько секунд после фандинга закрывать
+TELEGRAM_USER_ID = int(os.getenv("TELEGRAM_USER_ID"))
+TRADE_AMOUNT_USDT = float(os.getenv("TRADE_AMOUNT_USDT"))
+MIN_FUNDING_RATE = float(os.getenv("MIN_FUNDING_RATE"))  # Минимальный фандинг рейт для торговли (0.01%)
+SECONDS_BEFORE_FUNDING = int(os.getenv("SECONDS_BEFORE_FUNDING"))  # За сколько секунд до выплаты открывать позицию
+TOP_PAIRS_COUNT = int(os.getenv("TOP_PAIRS_COUNT"))  # Количество топ пар по модулю рейта
+SECONDS_AFTER_FUNDING_TO_CLOSE = int(os.getenv("SECONDS_AFTER_FUNDING_TO_CLOSE"))  # Через сколько секунд после фандинга закрывать
 
 # Печатаем скрытую информацию для отладки (API ключи скрыты)
 logger.info(f"API ключ Bybit: {BYBIT_API_KEY[:5]}... (скрыт)")
